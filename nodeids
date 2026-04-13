@@ -1,0 +1,9 @@
+[
+  "tests/test_load_save.py::test_read_csv_bytes_bom_utf8",
+  "tests/test_load_save.py::test_read_csv_bytes_cp1252_nbsp",
+  "tests/test_load_save.py::test_read_csv_bytes_utf8",
+  "tests/test_pipeline.py::test_exclude_column_name",
+  "tests/test_pipeline.py::test_no_duplicates_option_keeps_rows",
+  "tests/test_pipeline.py::test_pipeline_runs_and_reduces_duplicates",
+  "tests/test_pipeline.py::test_report_json_structure"
+]
