@@ -57,3 +57,37 @@ def test_exclude_column_name(dirty_df: pd.DataFrame):
     # id_col should remain if it was only excluded from feature lists — current pipeline
     # does not preserve excluded columns separately; they still exist if in dataframe
     assert "id_col" in out["cleaned_df"].columns
+
+
+def test_numeric_median_imputation():
+    df = pd.DataFrame({"x": [1.0, np.nan, 3.0], "y": ["a", "b", "c"]})
+    cfg = PipelineConfig(
+        numeric_impute_strategy="median",
+        encoding="none",
+        drop_duplicates=False,
+    )
+    out = run_pipeline(df, cfg)
+    cleaned = out["cleaned_df"]
+    assert cleaned["x"].notna().all()
+
+
+def test_force_categorical_int_country_gets_onehot():
+    """Integer 'country' codes must become one-hot columns when forced + onehot."""
+    df = pd.DataFrame(
+        {
+            "score": [0.1, 0.2, 0.3],
+            "country": [1, 2, 1],
+        }
+    )
+    cfg = PipelineConfig(
+        force_categorical_columns=["country"],
+        encoding="onehot",
+        drop_duplicates=False,
+        numeric_impute_strategy="median",
+    )
+    result = run_pipeline(df, cfg)
+    cleaned = result["cleaned_df"]
+    assert "country" not in cleaned.columns
+    oh_cols = [c for c in cleaned.columns if str(c).startswith("country_")]
+    assert len(oh_cols) >= 2
+    assert cleaned.isna().sum().sum() == 0

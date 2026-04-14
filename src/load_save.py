@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import joblib
 import pandas as pd
 
 # Order: BOM UTF-8, strict UTF-8, common Windows / Excel exports, byte-safe fallback
@@ -77,3 +78,10 @@ def save_json(data: dict[str, Any], path: str | Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, default=default)
+
+
+def save_joblib(obj: Any, path: str | Path) -> None:
+    """Persist Python objects for inference reuse."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(obj, path)

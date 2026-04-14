@@ -28,15 +28,16 @@ Use this document with your **own dataset name, row counts, and screenshots** fr
 | Profile | Per-column stats, missing % | pandas |
 | Duplicates | `drop_duplicates` | pandas |
 | Types | Coerce objects to numeric where possible | pandas |
-| Numeric imputation | k-NN imputer | sklearn `KNNImputer` |
-| Categorical imputation | Mode | pandas |
+| Numeric imputation | SimpleImputer (median/mean) or k-NN | sklearn |
+| Categorical imputation | SimpleImputer (`most_frequent` / `constant`) | sklearn |
 | Outliers | Isolation Forest | sklearn |
 | Scaling | Standard or MinMax | sklearn |
 | Encoding | One-hot or ordinal | sklearn |
 
 ## 5. Theory (short)
 
-- **k-NN imputation**: For each missing value, use mean of *k* nearest complete rows in feature space (distance weighted by scaled features).  
+- **SimpleImputer**: deterministic baseline (`median` robust for skew, `mean` for smooth numeric distributions).  
+- **k-NN imputation**: uses neighborhood structure and can recover local patterns better than global statistics.  
 - **Isolation Forest**: Random partitions isolate points; outliers have shorter average path length.  
 - **Scaling**: Many algorithms assume comparable feature scales; tree models are less sensitive but IF and k-NN benefit.  
 - **One-hot**: Avoids false order on nominal categories; **ordinal** only if order is meaningful.
@@ -44,8 +45,9 @@ Use this document with your **own dataset name, row counts, and screenshots** fr
 ## 6. Implementation (your repo)
 
 - **Entry**: `app.py` (Streamlit).  
-- **Core**: `src/pipeline.py` — `PipelineConfig`, `run_pipeline()`.  
-- **Tests**: `tests/test_pipeline.py` on synthetic dirty data.
+- **Core**: `src/pipeline.py` — `PipelineConfig`, `ModelReadyPreprocessor` (`fit/transform/save/load`), `run_pipeline()`.  
+- **Validation**: `src/validation.py` — schema and quality warnings.  
+- **Tests**: `tests/` including fit/transform, encoding, load/save, coercion edge cases.
 
 ## 7. Results (you fill)
 
@@ -56,7 +58,7 @@ Use this document with your **own dataset name, row counts, and screenshots** fr
 
 ## 8. Limitations
 
-- k-NN and IF on **full data** can **leak** target information if you include the label—use **train-only** fit in production.  
+- If users call one-shot `run_pipeline` on full data and then evaluate ML on the same transformed data, leakage is still possible; use `fit(train)` and `transform(test)` workflow for proper evaluation.  
 - High-cardinality one-hot blows up dimensionality.  
 - IF **contamination** is a guess; domain review is still needed.
 

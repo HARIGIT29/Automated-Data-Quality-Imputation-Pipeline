@@ -1,60 +1,82 @@
 # Automated Data Quality & Imputation Pipeline
 
-End-to-end **tabular** preprocessing: profiling, duplicate removal, type coercion, **k-NN** imputation for numerics, **mode** imputation for categoricals, **Isolation Forest** outlier flags, **StandardScaler** or **MinMaxScaler**, and optional **one-hot** or **ordinal** encoding. Delivered as a **Streamlit** app with JSON/HTML reports and CSV export.
+Industry-style preprocessing system for tabular ML data with:
+- schema/data-quality validation
+- train/test-safe `fit()` / `transform()` preprocessing
+- configurable imputation, outlier flags, scaling, and encoding
+- artifact persistence (`.joblib`) for inference reuse
+- Streamlit dashboard with quality summaries and downloads
 
-## Setup
+## Quick start
 
 ```bash
 cd Automated-Data-Quality-Imputation-Pipeline
 python -m venv .venv
-.venv\Scripts\activate          # Windows
+.venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-## Run Streamlit
-
-```bash
 streamlit run app.py
 ```
 
-Open the URL shown in the terminal, upload a **CSV** or **Excel** file, set sidebar options, and click **Run pipeline**. Download **cleaned CSV**, **pipeline_report.json**, and **profile_after.html**.
+Deterministic setup (for exact reproduction):
 
-## Run tests
+```bash
+pip install -r requirements-pinned.txt
+```
+
+## Core architecture
+
+| Path | Role |
+|------|------|
+| `src/pipeline.py` | `PipelineConfig`, `ModelReadyPreprocessor` (`fit/transform/save/load`), `run_pipeline` |
+| `src/validation.py` | schema + data-quality checks (errors/warnings/summary) |
+| `src/load_save.py` | robust CSV/Excel loading, JSON + joblib persistence |
+| `src/profile.py` | before/after profiling + HTML report |
+| `ARCHITECTURE.md` | architecture and data flow diagram |
+| `app.py` | Streamlit workflow UI and dashboard |
+| `tests/` | unit tests including fit/transform + persistence |
+| `docs/VIVA_UPGRADE_SUMMARY.md` | viva talking points for production upgrades |
+
+## Model-ready defaults
+
+- Encoding default: **`onehot`** (numeric-safe output).
+- Numeric imputation default: **`median`**.
+- Optional advanced mode: `binary_bits` (string output) for presentation use cases.
+
+## Train/test-safe workflow
+
+`ModelReadyPreprocessor` supports:
+- `fit(train_df)`
+- `transform(test_df)`
+- `fit_transform(train_df)`
+- `save(path)` / `load(path)`
+
+This avoids leakage from fitting imputers/scalers on the full dataset during model evaluation.
+
+## Streamlit features
+
+- Model-ready preset
+- Optional train/test split demo mode
+- target/id/exclude/force-categorical controls
+- validation warnings (high cardinality, all-null columns, mixed object types, etc.)
+- quality summary metrics and missingness visualization
+- downloads: `cleaned.csv`, `pipeline_report.json`, `profile_after.html`, `preprocessor.joblib`
+
+## Testing
 
 ```bash
 python -m pytest tests -v
 ```
 
-## Notebook demo
+## Deployment checklist
 
-```bash
-jupyter notebook notebooks/demo.ipynb
-```
-
-Ensure the notebook working directory is the project root (see first cell’s path hack), or set `PYTHONPATH` to this folder.
-
-## Project layout
-
-| Path | Role |
-|------|------|
-| `app.py` | Streamlit UI |
-| `src/pipeline.py` | Config + `run_pipeline()` |
-| `src/profile.py` | Before/after profiles, HTML |
-| `src/impute_knn.py` | k-NN + mode imputation |
-| `src/outliers.py` | Isolation Forest flags |
-| `src/scale.py` | Standard / MinMax scaling |
-| `src/categorical.py` | One-hot / ordinal encoding |
-| `tests/` | Pytest |
-| `notebooks/demo.ipynb` | Viva demo |
-| `docs/ACADEMIC_REPORT_AND_SLIDES.md` | Report & PPT outline |
+- Push repo to GitHub and connect Streamlit Cloud.
+- Verify `app.py` is configured as main file.
+- Use `requirements-pinned.txt` when deterministic environment is required.
+- Keep `.joblib` artifacts out of git (already ignored).
 
 ## Notes
 
-- **CSV encoding**: Uploads try UTF-8 (with BOM), then Windows-1252 and other common encodings so Excel-exported CSVs do not raise `UnicodeDecodeError`.
-- **Mixed data**: k-NN runs on numeric columns only; categoricals use mode imputation, then encoding.
-- **Outliers**: `is_outlier` column (1 = flagged); rows are not dropped by default.
-- **Exclude columns**: comma-separated names in the sidebar omit columns from the feature lists used for IF, scaling, and encoding (IDs/targets—use with care for missing values on those columns).
-
-## Cursor
-
-Open this folder in Cursor; run Streamlit or tests from the integrated terminal. Use `docs/ACADEMIC_REPORT_AND_SLIDES.md` to draft your college report and slides.
+- CSV loader tries UTF-8, UTF-8 BOM, cp1252, cp1250, and latin variants.
+- `is_outlier` is a flag (rows are not automatically dropped).
+- `binary_bits` is optional and not recommended as default ML input.
+- For production training, split data first and fit only on train data.
