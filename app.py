@@ -39,6 +39,20 @@ with st.sidebar:
         index=enc_default_idx,
         help="Use onehot for model-ready defaults. binary_bits is advanced and returns strings.",
     )
+    low_card_threshold = st.number_input(
+        "Low-cardinality one-hot threshold",
+        min_value=2,
+        max_value=500,
+        value=25,
+        help="Categoricals above this unique-count are treated as high-cardinality.",
+    )
+    high_card_strategy = st.selectbox(
+        "High-cardinality strategy",
+        ["frequency", "ordinal", "hash", "exclude"],
+        index=0,
+    )
+    hash_bins = st.number_input("Hash bins", min_value=2, max_value=2048, value=32)
+    outlier_action = st.selectbox("Outlier handling", ["flag", "remove", "cap"], index=0)
     do_round = st.checkbox("Round numeric columns", value=True)
     round_decimals = st.number_input("Decimal places", min_value=0, max_value=10, value=4) if do_round else None
     drop_dup = st.checkbox("Drop duplicates in fit data", value=True)
@@ -100,6 +114,10 @@ if run_btn:
         target_column=(target_col.strip() or None),
         id_column=(id_col.strip() or None),
         high_cardinality_threshold=int(high_card),
+        low_cardinality_threshold=int(low_card_threshold),
+        high_cardinality_strategy=high_card_strategy,
+        hash_bins=int(hash_bins),
+        outlier_action=outlier_action,
     )
     try:
         with st.spinner("Running pipeline..."):
@@ -123,7 +141,9 @@ if run_btn:
 
 if "result" in st.session_state:
     r = st.session_state["result"]
-    cleaned = r["cleaned_df"]
+    cleaned_raw = r["cleaned_raw_df"]
+    model_ready = r["model_ready_df"]
+    cleaned = model_ready
     report = r["report_json"]
     processor = r.get("processor")
 
@@ -135,9 +155,18 @@ if "result" in st.session_state:
         st.markdown("### Quality summary")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Rows in", report["n_rows_in"])
-        c2.metric("Rows out", report["n_rows_out"])
+        c2.metric("Rows out (model-ready)", report["n_rows_out"])
         c3.metric("Duplicates removed", report["summary"]["duplicates_removed"])
         c4.metric("Outliers flagged", report["summary"]["outliers_flagged"])
+        st.caption(
+            f"Invalid rows removed: {report['summary'].get('invalid_rows_removed', 0)} | "
+            f"Outliers removed: {report['summary']['outliers_removed']} | "
+            f"Imputed (num/cat): {report['summary'].get('numeric_imputed_cells', 0)}/"
+            f"{report['summary'].get('categorical_imputed_cells', 0)} | "
+            f"Encoded features created: {report['summary'].get('encoded_features_created', 0)} | "
+            f"Raw shape: {report['summary']['cleaned_raw_shape']} | "
+            f"Model-ready shape: {report['summary']['model_ready_shape']}"
+        )
         st.json(report.get("validation", {}))
         st.markdown("### Pipeline log")
         for line in r["log"]:
@@ -146,9 +175,11 @@ if "result" in st.session_state:
             st.info(f"Train/Test mode: {r['split_info']}")
 
     with tab2:
-        st.markdown("#### Cleaned data sample")
-        st.dataframe(cleaned.head(30), use_container_width=True)
-        st.metric("Output columns", len(cleaned.columns))
+        st.markdown("#### Cleaned raw data sample")
+        st.dataframe(cleaned_raw.head(20), use_container_width=True)
+        st.markdown("#### Model-ready data sample")
+        st.dataframe(model_ready.head(20), use_container_width=True)
+        st.metric("Model-ready output columns", len(model_ready.columns))
         if "cleaned_train_df" in r and "cleaned_test_df" in r:
             st.markdown("#### Train sample")
             st.dataframe(r["cleaned_train_df"].head(10), use_container_width=True)
@@ -179,12 +210,14 @@ if "result" in st.session_state:
             st.caption("No string categorical columns after encoding.")
 
     with tab5:
-        csv_bytes = cleaned.to_csv(index=False).encode("utf-8")
-        st.download_button("Download cleaned CSV", data=csv_bytes, file_name="cleaned.csv", mime="text/csv")
+        raw_bytes = cleaned_raw.to_csv(index=False).encode("utf-8")
+        model_bytes = model_ready.to_csv(index=False).encode("utf-8")
+        st.download_button("Download cleaned_raw.csv", data=raw_bytes, file_name="cleaned_raw.csv", mime="text/csv")
+        st.download_button("Download model_ready.csv", data=model_bytes, file_name="model_ready.csv", mime="text/csv")
         st.download_button(
-            "Download report JSON",
+            "Download report.json",
             data=json.dumps(report, indent=2, default=str),
-            file_name="pipeline_report.json",
+            file_name="report.json",
             mime="application/json",
         )
         st.download_button("Download profile HTML", data=r["profile_html"], file_name="profile_after.html", mime="text/html")

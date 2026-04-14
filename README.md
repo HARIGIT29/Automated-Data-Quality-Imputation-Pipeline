@@ -4,6 +4,9 @@ Industry-style preprocessing system for tabular ML data with:
 - schema/data-quality validation
 - train/test-safe `fit()` / `transform()` preprocessing
 - configurable imputation, outlier flags, scaling, and encoding
+- low-cardinality vs high-cardinality categorical handling
+- date feature engineering (`year/month/day/quarter/dayofweek`)
+- strict text normalization (trim, punctuation cleanup, lowercase canonicalization)
 - artifact persistence (`.joblib`) for inference reuse
 - Streamlit dashboard with quality summaries and downloads
 
@@ -41,6 +44,8 @@ pip install -r requirements-pinned.txt
 - Encoding default: **`onehot`** (numeric-safe output).
 - Numeric imputation default: **`median`**.
 - Optional advanced mode: `binary_bits` (string output) for presentation use cases.
+- High-cardinality default: **frequency encoding** (prevents very wide sparse output).
+- Outlier default: **flag** (`is_outlier`) with optional **remove** or **cap** mode.
 
 ## Train/test-safe workflow
 
@@ -57,9 +62,13 @@ This avoids leakage from fitting imputers/scalers on the full dataset during mod
 - Model-ready preset
 - Optional train/test split demo mode
 - target/id/exclude/force-categorical controls
+- low-cardinality threshold + high-cardinality strategy controls
+- outlier action control (`flag` / `remove` / `cap`)
 - validation warnings (high cardinality, all-null columns, mixed object types, etc.)
 - quality summary metrics and missingness visualization
-- downloads: `cleaned.csv`, `pipeline_report.json`, `profile_after.html`, `preprocessor.joblib`
+- dual downloads: `cleaned_raw.csv` and `model_ready.csv`
+- report downloads: `report.json`, `profile_after.html`, `preprocessor.joblib`
+- model-ready output is numeric-only by default
 
 ## Testing
 

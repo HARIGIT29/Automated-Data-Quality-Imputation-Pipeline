@@ -36,6 +36,7 @@ def validate_dataframe(
     constant_cols: list[str] = []
     high_card_cols: list[str] = []
     mixed_type_cols: list[str] = []
+    high_missing_cols: list[str] = []
 
     for c in df.columns:
         s = df[c]
@@ -46,6 +47,9 @@ def validate_dataframe(
             constant_cols.append(str(c))
         if nunique > high_cardinality_threshold and s.dtype == object:
             high_card_cols.append(str(c))
+        missing_ratio = float(s.isna().mean()) if len(s) else 0.0
+        if missing_ratio > 0.5:
+            high_missing_cols.append(str(c))
 
         # Mixed python object types in object/string columns.
         if s.dtype == object:
@@ -63,6 +67,8 @@ def validate_dataframe(
         )
     if mixed_type_cols:
         warnings.append(f"Mixed-type object columns: {mixed_type_cols}.")
+    if high_missing_cols:
+        warnings.append(f"Columns with >50% missing values: {high_missing_cols}.")
 
     summary = {
         "n_rows": int(df.shape[0]),
@@ -73,6 +79,7 @@ def validate_dataframe(
         "constant_columns": constant_cols,
         "high_cardinality_columns": high_card_cols,
         "mixed_type_columns": mixed_type_cols,
+        "high_missing_columns": high_missing_cols,
     }
 
     return {"errors": errors, "warnings": warnings, "summary": summary}
